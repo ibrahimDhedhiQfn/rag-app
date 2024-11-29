@@ -19,6 +19,7 @@ def chat():
     retrieved_data = retrieve(query)
 
     # Generate a response
+    response = generate_response(query, retrieved_data)
     
     # Clean the response to remove unwanted escape characters
     cleaned_response = clean_output(response)
