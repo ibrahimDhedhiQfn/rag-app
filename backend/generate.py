@@ -10,6 +10,6 @@ def generate_response(query, retrieved_data):
     else:
         prompt = query  # No relevant data, use query only
 
-    # Use Llama 2 to generate the response
-    response = call_llama2(prompt)  # Query Llama 2 using the function
-    return response
+    # Stream response from Llama 2
+    for chunk in call_llama2(prompt):
+        yield chunk

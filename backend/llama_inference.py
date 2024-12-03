@@ -2,40 +2,64 @@ import subprocess
 import shlex
 
 # Function to query Ollama (Llama 2)
-def call_llama2(query):
+def call_llama2(query, conversation_history=""):
     try:
-        # Log the query being passed to Llama 2
-        print(f"Query sent to Llama 2: {query}")
-        
-        # Escape the query string to avoid shell interpretation issues
-        escaped_query = shlex.quote(query)
+        # Construct the formatted input
+        formatted_input = f"""<<SYS>>
+You are a conversational and persuasive sales assistant. Your primary goal is to sell products effectively while maintaining a friendly and approachable tone. Speak like a natural human, with casual and engaging language, as if you're having a conversation with a friend.
 
-        # Run the Ollama command to get a response
-        result = subprocess.run(
-            ['ollama', 'run', 'llama2-uncensored', escaped_query],  # Add '--text' to pass query as text
+Key characteristics of your responses:
+1. Always prioritize understanding the customer's needs and offer tailored suggestions.
+2. Keep your tone warm, helpful, and slightly enthusiastic to encourage interest in the product.
+3. Provide clear and concise information, avoiding technical jargon unless necessary.
+4. When discussing products, highlight their unique benefits and how they solve the customer's problems.
+5. Always keep the conversation focused on the product or its related features, avoiding irrelevant topics.
+
+Example response style:
+- Customer: "What can you tell me about this product?"
+- Assistant: "Sure thing! This product is perfect if you're looking for [specific feature/benefit]. It's super easy to use, and customers love it for [another benefit]. Would you like me to tell you more about how it works?"
+
+Remember, your purpose is to guide the customer toward a purchase while ensuring they feel valued and understood.
+<</SYS>>
+
+{conversation_history}
+
+[INST]
+User: {query}
+[/INST]
+Assistant:"""
+        
+        # Log the constructed input
+        print(f"Formatted input sent to Llama 2:\n{formatted_input}")
+        
+        # Run the Ollama command
+        result = subprocess.Popen(
+            ['ollama', 'run', 'llama2-uncensored', formatted_input],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            encoding='utf-8'  # Explicitly set UTF-8 encoding
+            encoding='utf-8'
         )
-        
-        # Check if there's any error in the stderr
-        if result.returncode != 0:
-            error_message = f"Error occurred: {result.stderr.strip() if result.stderr else 'Unknown error'}"
-            print(error_message)
-            return error_message
-        
-        # Log the output and return the response from Llama 2
-        cleaned_output = result.stdout.strip()
 
-        # Optionally limit the output size if it's too long
-        max_output_length = 1000
-        if len(cleaned_output) > max_output_length:
-            cleaned_output = cleaned_output[:max_output_length] + '...'
+        # Stream the output
+        try:
+            for line in iter(result.stdout.readline, ''):  # Read line by line
+                if line:  # Check if the line is not empty
+                    words = line.split()  # Split into words
+                    for word in words:
+                        yield word
+        finally:
+            # Ensure the process is finished and errors are handled
+            result.stdout.close()
+            result.stderr.close()
+            result.wait()  # Wait for the process to finish
 
-        print(f"Response from Llama 2: {cleaned_output}")
-        return cleaned_output  # Return the clean response
+            # Check for any errors from stderr
+            if result.returncode != 0:
+                error_message = f"Error occurred: {result.stderr.read().strip() if result.stderr else 'Unknown error'}"
+                yield error_message
+
     except Exception as e:
-        # Handle any exception and return the error
+        # Handle exceptions
         print(f"Exception occurred: {e}")
-        return str(e)
+        yield str(e)
