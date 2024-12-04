@@ -24,13 +24,7 @@ def clean_output(output: str) -> str:
 # Function to clear the screen
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')  # 'cls' for Windows, 'clear' for Unix-based systems
-
-import json
-import os
-
-import json
-import os
-
+    
 def save_to_json(query, response, file_path='./datasets/data.json'):
     """
     Save query-response pair to a JSON file, appending to the file if it exists.
@@ -134,15 +128,20 @@ def chat():
 
     def generate_stream():
         response_chunks = []  # To accumulate the chunks of the response
-        for word in generate_response(query, retrieved_data):
-            cleaned_word = clean_output(word)
-            response_chunks.append(cleaned_word)  # Append the word to the list
+        try:
+            for word in generate_response(query, retrieved_data):
+                cleaned_word = clean_output(word)
+                response_chunks.append(cleaned_word)  # Append the word to the list
+                
+                # Log each chunk to the terminal (optional)
+                print(f"Streaming chunk: {cleaned_word}")
+                
+                # Yield each cleaned word (for streaming purposes)
+                yield cleaned_word  # SSE format for streaming
+        except Exception as e:
+            yield f"Error occurred during response generation: {str(e)}"
             
-            # Log each chunk to the terminal (optional)
-            print(f"Streaming chunk: {cleaned_word}")
-            
-            # Yield each cleaned word (for streaming purposes)
-            yield cleaned_word  # SSE format for streaming
+        # After generating the full response, save and update embeddings
         full_response = " ".join(response_chunks)
         print(f"Full Response: {full_response}")
         save_to_json(query, full_response)
@@ -153,4 +152,4 @@ def chat():
     return Response(generate_stream(), content_type='text/event-stream')
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=5000)

@@ -1,5 +1,6 @@
 import subprocess
 import shlex
+import re  # For regex-based cleaning
 
 # Function to query Ollama (Llama 2)
 def call_llama2(query, conversation_history=""):
@@ -43,11 +44,16 @@ Assistant:"""
 
         # Stream the output
         try:
+            full_response = ""  # To accumulate the cleaned response
             for line in iter(result.stdout.readline, ''):  # Read line by line
                 if line:  # Check if the line is not empty
-                    words = line.split()  # Split into words
-                    for word in words:
-                        yield word
+                    # Clean the line to remove unwanted system tokens and formatting
+                    line = clean_output(line)
+                    full_response += line + " "  # Accumulate the cleaned response
+
+            # Yield the final cleaned response once the process is complete
+            yield full_response.strip()
+
         finally:
             # Ensure the process is finished and errors are handled
             result.stdout.close()
@@ -63,3 +69,16 @@ Assistant:"""
         # Handle exceptions
         print(f"Exception occurred: {e}")
         yield str(e)
+
+# Function to clean the response
+def clean_output(output: str) -> str:
+    # Remove ANSI escape codes (cursor and formatting control codes)
+    output = re.sub(r'\x1b[^m]*m', ' ', output)
+
+    # Remove system tokens like [INST], <<SYS>>, and other unwanted parts
+    output = re.sub(r'\[INST\].*?Answer:|<<SYS>>.*?<</SYS>>', '', output)
+
+    # Remove any extra spaces that may have been introduced
+    output = re.sub(r'\s+', ' ', output).strip()
+
+    return output
