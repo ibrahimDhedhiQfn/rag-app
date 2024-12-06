@@ -6,8 +6,10 @@ import re
 import os  # Import os for clearing the terminal
 from sentence_transformers import SentenceTransformer
 import faiss
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 # Initialize embedding model
 model = SentenceTransformer('all-MiniLM-L6-v2')
